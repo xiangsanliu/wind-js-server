@@ -8,7 +8,7 @@ var cors = require('cors');
 
 var app = express();
 var port = process.env.PORT || 7000;
-var baseDir ='http://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_1p00.pl';
+var baseDir ='http://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl';
 
 // cors config
 var whitelist = [
@@ -46,7 +46,7 @@ app.get('/latest', cors(corsOptions), function(req, res){
 	 */
 	function sendLatest(targetMoment){
 
-		var stamp = moment(targetMoment).format('YYYYMMDD') + roundHours(moment(targetMoment).hour(), 6);
+		var stamp = moment(targetMoment).format('YYYYMMDD')+'/' + roundHours(moment(targetMoment).hour(), 6);
 		var fileName = __dirname +"/json-data/"+ stamp +".json";
 
 		res.setHeader('Content-Type', 'application/json');
@@ -148,22 +148,25 @@ function getGribData(targetMoment){
 		if (moment.utc().diff(targetMoment, 'days') > 30){
 	        console.log('hit limit, harvest complete or there is a big gap in data..');
             return;
-        }
+		}
 
-		var stamp = moment(targetMoment).format('YYYYMMDD') + roundHours(moment(targetMoment).hour(), 6);
+		var fileName = 'gfs.t'+ roundHours(moment(targetMoment).hour(), 6) +'z.pgrb2.0p25.f000';
+
+
+		var stamp = moment(targetMoment).format('YYYYMMDD')+'/' + roundHours(moment(targetMoment).hour(), 6);
 		request.get({
 			url: baseDir,
 			qs: {
-				file: 'gfs.t'+ roundHours(moment(targetMoment).hour(), 6) +'z.pgrb2.1p00.f000',
-				lev_10_m_above_ground: 'on',
-				lev_surface: 'on',
-				var_TMP: 'on',
+				file: fileName,
+				lev_1000_mb: 'on',
+				// lev_surface: 'on',
+				// var_TMP: 'on',
 				var_UGRD: 'on',
 				var_VGRD: 'on',
-				leftlon: 0,
-				rightlon: 360,
-				toplat: 90,
-				bottomlat: -90,
+				leftlon: 115,
+				rightlon: 117,
+				toplat: 30,
+				bottomlat: 28,
 				dir: '/gfs.'+stamp
 			}
 
