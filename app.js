@@ -38,6 +38,7 @@ app.get('/alive', cors(corsOptions), function (req, res) {
 });
 
 app.get('/latest', cors(corsOptions), function (req, res) {
+    res.header("Access-Control-Allow-Origin", "*");
 
     /**
      * Find and return the latest available 6 hourly pre-parsed JSON data
@@ -142,8 +143,8 @@ function getGribData(targetMoment) {
 
     function runQuery(targetMoment) {
 
-        // only go 2 weeks deep
-        if (moment.utc().diff(targetMoment, 'days') > 2) {
+        // 下载最近7天的数据
+        if (moment.utc().diff(targetMoment, 'days') > 7) {
             console.log('hit limit, harvest complete or there is a big gap in data..');
             return;
         }
