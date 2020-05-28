@@ -1,26 +1,26 @@
-var express = require("express");
-var moment = require("moment");
-var http = require('http');
-var request = require('request');
-var fs = require('fs');
-var Q = require('q');
-var cors = require('cors');
+let express = require("express");
+let moment = require("moment");
+let http = require('http');
+let request = require('request');
+let fs = require('fs');
+let Q = require('q');
+let cors = require('cors');
 
-var app = express();
-var port = process.env.PORT || 7000;
-var baseDir = 'http://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl';
+let app = express();
+let port = process.env.PORT || 7000;
+let baseDir = 'http://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl';
 
 // cors config
-var whitelist = [
+let whitelist = [
     'http://localhost:63342',
     'http://localhost:3000',
     'http://localhost:4000',
     'http://danwild.github.io'
 ];
 
-var corsOptions = {
+let corsOptions = {
     origin: function (origin, callback) {
-        var originIsWhitelisted = whitelist.indexOf(origin) !== -1;
+        let originIsWhitelisted = whitelist.indexOf(origin) !== -1;
         callback(null, originIsWhitelisted);
     }
 };
@@ -46,8 +46,8 @@ app.get('/latest', cors(corsOptions), function (req, res) {
      */
     function sendLatest(targetMoment) {
 
-        var stamp = moment(targetMoment).format('YYYYMMDD') + '/' + roundHours(moment(targetMoment).hour(), 6);
-        var fileName = __dirname + "/json-data/" + stamp + ".json";
+        let stamp = moment(targetMoment).format('YYYYMMDD') + roundHours(moment(targetMoment).hour(), 6);
+        let fileName = __dirname + "/json-data/" + stamp + ".json";
 
         res.setHeader('Content-Type', 'application/json');
         res.sendFile(fileName, {}, function (err) {
@@ -64,9 +64,9 @@ app.get('/latest', cors(corsOptions), function (req, res) {
 
 app.get('/nearest', cors(corsOptions), function (req, res, next) {
 
-    var time = req.query.timeIso;
-    var limit = req.query.searchLimit;
-    var searchForwards = false;
+    let time = req.query.timeIso;
+    let limit = req.query.searchLimit;
+    let searchForwards = false;
 
     /**
      * Find and return the nearest available 6 hourly pre-parsed JSON data
@@ -86,13 +86,13 @@ app.get('/nearest', cors(corsOptions), function (req, res, next) {
             }
         }
 
-        var stamp = moment(targetMoment).format('YYYYMMDD') + roundHours(moment(targetMoment).hour(), 6);
-        var fileName = __dirname + "/json-data/" + stamp + ".json";
+        let stamp = moment(targetMoment).format('YYYYMMDD') + roundHours(moment(targetMoment).hour(), 6);
+        let fileName = __dirname + "/json-data/" + stamp + ".json";
 
         res.setHeader('Content-Type', 'application/json');
         res.sendFile(fileName, {}, function (err) {
             if (err) {
-                var nextTarget = searchForwards ? moment(targetMoment).add(6, 'hours') : moment(targetMoment).subtract(6, 'hours');
+                let nextTarget = searchForwards ? moment(targetMoment).add(6, 'hours') : moment(targetMoment).subtract(6, 'hours');
                 sendNearestTo(nextTarget);
             }
         });
@@ -138,24 +138,24 @@ function run(targetMoment) {
  */
 function getGribData(targetMoment) {
 
-    var deferred = Q.defer();
+    let deferred = Q.defer();
 
     function runQuery(targetMoment) {
 
         // only go 2 weeks deep
-        if (moment.utc().diff(targetMoment, 'days') > 30) {
+        if (moment.utc().diff(targetMoment, 'days') > 2) {
             console.log('hit limit, harvest complete or there is a big gap in data..');
             return;
         }
 
-        var fileName = 'gfs.t' + roundHours(moment(targetMoment).hour(), 6) + 'z.pgrb2.0p25.f000';
+        let fileUrlName = 'gfs.t' + roundHours(moment(targetMoment).hour(), 6) + 'z.pgrb2.0p25.f000';
 
+        let stamp = moment(targetMoment).format('YYYYMMDD') + roundHours(moment(targetMoment).hour(), 6);
 
-        var stamp = moment(targetMoment).format('YYYYMMDD') + '/' + roundHours(moment(targetMoment).hour(), 6);
         request.get({
             url: baseDir,
             qs: {
-                file: fileName,
+                file: fileUrlName,
                 lev_1000_mb: 'on',
                 // lev_surface: 'on',
                 // var_TMP: 'on',
@@ -165,7 +165,7 @@ function getGribData(targetMoment) {
                 rightlon: 117,
                 toplat: 30,
                 bottomlat: 28,
-                dir: '/gfs.' + stamp
+                dir: '/gfs.' + moment(targetMoment).format('YYYYMMDD') + '/' + roundHours(moment(targetMoment).hour(), 6)
             }
 
         }).on('error', function (err) {
@@ -176,7 +176,7 @@ function getGribData(targetMoment) {
 
             console.log('response ' + response.statusCode + ' | ' + stamp);
 
-            if (response.statusCode != 200) {
+            if (response.statusCode !== 200) {
                 runQuery(moment(targetMoment).subtract(6, 'hours'));
             } else {
                 // don't rewrite stamps
@@ -188,7 +188,7 @@ function getGribData(targetMoment) {
                     checkPath('grib-data', true);
 
                     // pipe the file, resolve the valid time stamp
-                    var file = fs.createWriteStream("grib-data/" + stamp + ".f000");
+                    let file = fs.createWriteStream("grib-data/" + stamp + ".f000");
                     response.pipe(file);
                     file.on('finish', function () {
                         file.close();
@@ -213,7 +213,7 @@ function convertGribToJson(stamp, targetMoment) {
     // mk sure we've got somewhere to put output
     checkPath('json-data', true);
 
-    var exec = require('child_process').exec, child;
+    let exec = require('child_process').exec, child;
 
     child = exec('converter/bin/grib2json --data --output json-data/' + stamp + '.json --names --compact grib-data/' + stamp + '.f000',
         {maxBuffer: 500 * 1024},
@@ -228,8 +228,8 @@ function convertGribToJson(stamp, targetMoment) {
                 exec('rm grib-data/*');
 
                 // if we don't have older stamp, try and harvest one
-                var prevMoment = moment(targetMoment).subtract(6, 'hours');
-                var prevStamp = prevMoment.format('YYYYMMDD') + roundHours(prevMoment.hour(), 6);
+                let prevMoment = moment(targetMoment).subtract(6, 'hours');
+                let prevStamp = prevMoment.format('YYYYMMDD') + roundHours(prevMoment.hour(), 6);
 
                 if (!checkPath('json-data/' + prevStamp + '.json', false)) {
 
@@ -253,7 +253,7 @@ function convertGribToJson(stamp, targetMoment) {
  */
 function roundHours(hours, interval) {
     if (interval > 0) {
-        var result = (Math.floor(hours / interval) * interval);
+        let result = (Math.floor(hours / interval) * interval);
         return result < 10 ? '0' + result.toString() : result;
     }
 }
